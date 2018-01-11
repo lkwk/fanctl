@@ -1,6 +1,6 @@
 ## Synopsis
 
-Fan Controller (fanctl) reads the temperature from one or more Dallas DS18S20 1-Wire digital thermometers and controls a PWM fan's (or multiple fans in serial) speed accordingly. This program is intended for any Raspberry Pi and may also work on similar devices. A [Fritzing](http://fritzing.org/home/) sketch for the electrical components and setup is included.
+Fan Controller (fanctl) reads the temperature from one or more Dallas DS18S20 one-wire digital thermometers and controls the speed of a PWM fan accordingly. To control multiple fans, you can wire them in parallel. This program is intended for any Raspberry Pi and may also work on similar devices. A [Fritzing](http://fritzing.org/home/) sketch for the electrical components and setup is included.
 
 ## Installation
 
