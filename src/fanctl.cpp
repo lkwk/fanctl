@@ -2,8 +2,8 @@
 /**
  * Fan Controller (fanctl)
  *
- * This program reads temperatures from Dallas DS18S20 1-Wire digital
- * thermometers and controls PWM fans accordingly.
+ * This program reads temperatures from Dallas DS18S20 one-wire digital
+ * thermometers and controls PWM fan speed accordingly.
  *
  * Compile command:
  * g++ -Wall -lwiringPi fanctl.cpp -o fanctl
@@ -49,7 +49,7 @@ int main () {
       pwmSetRange(16);
 
 			// Open the paths to the sensor(s) for reading, the opened ifstreams will
-			// be stored in the 'sensors' vector. If a stream can not be  opened the
+			// be stored in the 'sensors' vector. If a stream can not be opened the
 			// program will exit.
 			openSensorStreams();
 
@@ -93,14 +93,14 @@ int main () {
 				}
 
 				// Output some statistics in JSON format to STDOUT.
-				// We can catch STDOUT with `websocketd` and push it to any webpage.
+				// We could catch STDOUT with `websocketd` and push it to any webpage.
 				if (enableJsonOut) {
 
-					// For now the fans' RPM and speed-% is calculated, not measured.
+					// For now the fan's RPM and speed-% is calculated, not measured.
 					rpm = ((step * 46.875) + ((step < 4) ? (0) : (600)));
 					pct = step * 6.25;
 
-					// Get the sys- and diskinfo.
+					// Get the sys- and diskinfo for our statistics feed.
 					sysinfo(&si);
 					statvfs("/", &vfs);
 
