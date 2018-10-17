@@ -6,7 +6,7 @@
  * thermometers and controls PWM fan speed accordingly.
  *
  * Compile command:
- * g++ -Wall -lwiringPi fanctl.cpp -o fanctl
+ * g++ -Wall -lwiringPi -lwiringPiDev fanctl.cpp -o fanctl
  *
  * Copyright (c) 2017 lkwk
  */
@@ -26,32 +26,44 @@ int main () {
 	// Check if we are root, since wiringPiSetupGpio() requires this.
 	if (geteuid() == 0) {
 
-    // Setup the GPIO pins.
-    if (wiringPiSetupGpio() >= 0) {
+		// Setup the GPIO pins.
+		if (wiringPiSetupGpio() >= 0) {
 
 			// Get system hostname and uname.
 			gethostname(hostname, 1023);
 			uname(&uts);
 
 			// Pin 18 is the only pin on the Raspberry Pi that supports hardware PWM.
-      // Pin 25 is used to control the power supply to the status LED and to
+			// Pin 25 is used to control the power supply to the status LED and to
 			// switch on the 12V DC to the fans.
-      pwmSetMode(PWM_MODE_MS);
-      pinMode(pinFanSpeed, PWM_OUTPUT);
-      pinMode(pinFanPower, OUTPUT);
+			pwmSetMode(PWM_MODE_MS);
+			pinMode(pinFanSpeed, PWM_OUTPUT);
+			pinMode(pinFanPower, OUTPUT);
 
 			// The base clock on the RPi's PWM is 19.2MHz. The PWM fans need a
 			// frequency of 25kHz (+/- 4kHz) according to the PWM specification. In
 			// order to get to this frequency we set the following values, which give
 			// us a frequency of 25kHz (19200kHz/48/16).
 			// The range defines the number of steps from 0 to 100% (in this case 16).
-      pwmSetClock(48);
-      pwmSetRange(16);
+			pwmSetClock(48);
+			pwmSetRange(16);
+
+                        // Initialize the LCD monitor.
+                        if (enableLcdMonitor) {
+
+                                mon = lcdInit(4, 20, 4, 7, 8, 24, 10, 9, 11, 0, 0, 0, 0);
+                                lcdCharDef(mon, 0, degsymbol);
+                                lcdClear(mon);
+                                lcdCursorBlink(mon, 0);
+
+                        }
 
 			// Open the paths to the sensor(s) for reading, the opened ifstreams will
 			// be stored in the 'sensors' vector. If a stream can not be opened the
 			// program will exit.
 			openSensorStreams();
+
+
 
 			// Instead of creating a daemon we'll do this for now.
 			for (;;) {
@@ -92,6 +104,27 @@ int main () {
 
 				}
 
+				// Write status to LCD monitor.
+				if (enableLcdMonitor && mon != -1) {
+
+					lcdPosition(mon, 0, 0);
+					lcdPrintf(mon, "%1.2f %1.2f %1.2f (%ld)", (si.loads[0] / 65536.0), (si.loads[1] / 65536.0), (si.loads[2] / 65536.0), si.procs);
+					lcdPosition(mon, 0, 1);
+					lcdPuts(mon, "== FAN CONTROLLER ==");
+					lcdPosition(mon, 0, 2);
+					lcdPrintf(mon, "T=%2.1f", avg);
+					lcdPosition(mon, 2, 8);
+					lcdPutchar(mon, 0);
+					lcdPrintf(mon, "C; Thr=%2.1f", fanOnTemp);
+					lcdPosition(mon, 2, 19);
+					lcdPutchar(mon, 0);
+					lcdPosition(mon, 2, 20);
+					lcdPuts(mon, "C");
+					lcdPosition(mon, 0, 3);
+					lcdPrintf(mon, "Fans @ %3.0f%%  %4.0fRPM", (step * 6.25), ((step * 46.875) + ((step < 4) ? (0) : (600))));
+
+				}
+
 				// Output some statistics in JSON format to STDOUT.
 				// We could catch STDOUT with `websocketd` and push it to any webpage.
 				if (enableJsonOut) {
@@ -106,19 +139,23 @@ int main () {
 
 					// Assemble and output the statistics.
 					std::cout << "{";
-					std::cout << " \"fans\": { \"status\": \"" << status << "\", \"config\": { \"on_temp\": " << fanOnTemp << ", \"off_temp\": " << fanOffTemp << ", \"max_temp\": " << fanMaxTemp << "}, \"all_temps\": [" << concatTemps() << "], \"avg_temp\": " << avg << ", \"step\": " << step << ", \"rpm\": " << rpm << ", \"pct\": " << pct << " },";
+					std::cout << " \"fans\": { \"status\": \"" << status << "\", \"config\": { \"on_temp\": " << fanOnTemp << ", \"off_temp\": " << fanOffTemp << ", \"max_temp\": " << fanMaxTemp << "}	, \"all_temps\": [" << concatTemps() << "], \"avg_temp\": " << avg << ", \"step\": " << step << ", \"rpm\": " << rpm << ", \"pct\": " << pct << " },";
 					std::cout << " \"system\": { \"load\": [" << (si.loads[0] / 65536.0) << ", " << (si.loads[1] / 65536.0) << ", " << (si.loads[2] / 65536.0) << "], ";
-					std::cout <<                "\"mem\": { \"total\": "<< si.totalram << ", \"free\": " << si.freeram << ", \"used\": " << (si.totalram - si.freeram) << " }, ";
-					std::cout <<                "\"disk\": { \"total\": "<< std::setprecision(16) << (vfs.f_bsize * (double)vfs.f_blocks) << ", \"free\": " << std::setprecision(16) << (vfs.f_bsize * (double)vfs.f_bfree) << ", \"used\": " << std::setprecision(16) << ((vfs.f_bsize * (double)vfs.f_blocks) - (vfs.f_bsize * (double)vfs.f_bfree)) << " }, ";
-					std::cout <<                "\"uts\": { \"sysname\": \"" << uts.sysname << "\", \"nodename\": \"" << uts.nodename << "\", \"release\": \"" << uts.release << "\", \"version\": \"" << uts.version << "\", \"machine\": \"" << uts.machine << "\" }, ";
-					std::cout <<                "\"hostname\": \"" << hostname << "\", \"procs\": " << si.procs << ", \"uptime\": " << si.uptime << "}";
-					std::cout << " }" << std::endl;
+					std::cout << " \"mem\": { \"total\": "<< si.totalram << ", \"free\": " << si.freeram << ", \"used\": " << (si.totalram - si.freeram) << " }, ";
+					std::cout << " \"disk\": { \"total\": "<< std::setprecision(16) << (vfs.f_bsize * (double)vfs.f_blocks) << ", \"free\": " << std::setprecision(16) << (vfs.f_bsize * (double)vfs.f_bfree) << ", \"used\": " << std::setprecision(16) << ((vfs.f_bsize * (double)vfs.f_blocks) - (vfs.f_bsize * (double)vfs.f_bfree)) << " }, ";
+					std::cout << " \"uts\": { \"sysname\": \"" << uts.sysname << "\", \"nodename\": \"" << uts.nodename << "\", \"release\": \"" << uts.release << "\", \"version\": \"" << uts.version << "\", \"machine\": \"" << uts.machine << "\" }, ";
+					std::cout << " \"hostname\": \"" << hostname << "\", \"procs\": " << si.procs << ", \"uptime\": " << si.uptime << "}";
+					std::cout << "}" << std::endl;
 
 				}
 
+
+				// Sleep 10 seconds.
+				usleep(10000000);
+
 			} // End for(;;)
 
-		  return 0;
+			return 0;
 
 		} else {
 
