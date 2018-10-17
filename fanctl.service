@@ -5,9 +5,7 @@ After=network.target
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/fanctl
-# ExecStart=/usr/local/bin/websocketd --port=8000 /usr/local/bin/fanctl
 Restart=always
-RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target
