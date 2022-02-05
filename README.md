@@ -8,8 +8,14 @@ You need to have [wiringPi](http://wiringpi.com/) installed on your Raspberry Pi
 ```
 dtoverlay=w1-gpio,gpiopin=4
 ```
-Open `fanctl.h` in your favorite text editor, set the path(s) to your temperature sensor(s), configure your GPIO pins and set your temperature limits. Then use the following command to compile:  
+Open `fanctl.hpp` in your favorite text editor, set the path(s) to your temperature sensor(s), configure your GPIO pins and set your temperature limits. Then use the following command from the src directory to compile:  
 ```
 g++ -Wall -lwiringPi fanctl.cpp -o fanctl  
 ```
+Or from the project root:
+```
+make
+```
+Then copy the binary to your `bin` directory.
+
 Run this program as root with `./fanctl`, or edit and use the included `fanctl.service` file for systemd.  
